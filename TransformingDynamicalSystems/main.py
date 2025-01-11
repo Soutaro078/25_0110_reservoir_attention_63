@@ -132,6 +132,13 @@ def compare_spectra(model: nn.Module, test_data: np.ndarray, enc_seq_len: int, d
     ax3.set_title("Powerspectra", fontsize=12)
     plt.tight_layout()
 
+    # 追加機能その①
+    # result ディレクトリはすでにある想定なので、mkdir はしない
+    fig_path = "/app/result/lorenz63_compare_spectra.png"
+    plt.savefig(fig_path)
+    plt.show()
+
+
     return prediction, ps_error
 
 def power_spectrum_error(prediction, test_data, sigma):
@@ -197,6 +204,14 @@ def train(
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate[0])
     loss_fn = nn.MSELoss()
 
+    # CSV 書き込みファイルのパス (result ディレクトリは既存だと想定)
+    # 追加機能その②
+    csv_path = "/app/result/training_log.csv"
+    # ヘッダを書いておく (上書きされる点に注意)
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "loss"])
+
     for epoch in range(num_epochs):
         epoch_iterator = tqdm(train_loader)
         sum_loss = 0
@@ -216,6 +231,12 @@ def train(
             loss.backward()
             optimizer.step()
         print(f"Epoch {epoch} Loss: {sum_loss/len(train_loader)}")
+
+        # CSV に追記
+        # 追加機能その③
+        with open(csv_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([epoch, avg_loss])
         
     return model
 
@@ -237,8 +258,13 @@ if __name__ == "__main__":
     )
 
     # models ディレクトリが存在しない場合は作成
-    os.makedirs('./models', exist_ok=True)
-    torch.save(model, f"./models/model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pt")
+    # os.makedirs('./models', exist_ok=True)
+    # torch.save(model, f"./models/model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pt")
+    # 学習済みモデルを result ディレクトリに保存
+    # すでに result ディレクトリがある前提なので mkdir は呼ばない
+    # モデルの保存(その2)
+    model_path = f"/app/result/lorenz63_{datetime.now():%Y%m%d_%H%M%S}.pt"
+    torch.save(model, model_path)
 
     # テストデータの読み込み
     test_data = np.load('/app/data/lorenz63_test.npy')
