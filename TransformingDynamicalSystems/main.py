@@ -12,6 +12,30 @@ from reservoir_attention import ReservoirWithAttention
 from echotorch.nn import LiESN
 import echotorch.utils.matrix_generation as mg
 
+# def T_step_prediction(
+#     model: nn.Module, initial_enc_input: torch.Tensor, initial_dec_input: torch.Tensor, enc_mask: torch.Tensor, dec_mask: torch.Tensor, T: int
+# ) -> torch.Tensor:
+#     # 最初の次元にバッチ次元を追加する
+#     if len(initial_enc_input.shape) < 3:
+#         initial_enc_input = initial_enc_input.unsqueeze(0)
+#     if len(initial_dec_input.shape) < 3:
+#         initial_dec_input = initial_dec_input.unsqueeze(0)
+
+#     prediction = initial_dec_input
+
+#     enc_input = initial_enc_input
+#     dec_input = initial_dec_input
+
+#     for t in range(T):
+#         with torch.no_grad():
+#             dec_output = model(enc_input, dec_input, enc_mask, dec_mask)
+#         # シーケンス次元（時間次元）方向に結合
+#         enc_input = torch.cat((enc_input[:, 1:, :], dec_output), dim=1)
+#         dec_input = dec_output
+#         prediction = torch.cat((prediction, dec_output), dim=1)
+
+#     return prediction
+
 def T_step_prediction(
     model: nn.Module, initial_enc_input: torch.Tensor, initial_dec_input: torch.Tensor, enc_mask: torch.Tensor, dec_mask: torch.Tensor, T: int
 ) -> torch.Tensor:
@@ -26,9 +50,40 @@ def T_step_prediction(
     enc_input = initial_enc_input
     dec_input = initial_dec_input
 
+    # # dec_mask のサイズを dec_input に合わせて調整
+    # if dec_mask.size(0) != dec_input.size(0) or dec_mask.size(1) != dec_input.size(1):
+    #     dec_mask = dec_mask.unsqueeze(0).expand(dec_input.size(0), dec_input.size(1))
+
+    # dec_mask のサイズを dec_input に合わせて調整
+    # if dec_mask.size(0) != dec_input.size(0) or dec_mask.size(1) != dec_input.size(1):
+    #     dec_mask = dec_mask.repeat(dec_input.size(0) // dec_mask.size(0), dec_input.size(1) // dec_mask.size(1))
+    # dec_mask のサイズを dec_input に合わせて調整
+    # dec_mask のサイズを dec_input に合わせて調整
+    # if dec_mask.size(0) == 0 or dec_mask.size(1) == 0:
+    #     dec_mask = torch.ones((dec_input.size(1), dec_input.size(1)))
+
     for t in range(T):
+        # dec_input.shape[1] = t+1 が想定される
+        seq_len = dec_input.size(1)
+        # (seq_len, seq_len) の下三角マスクを作る
+        dec_mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1).bool()
         with torch.no_grad():
-            dec_output = model(enc_input, dec_input, enc_mask, dec_mask)
+            # attn_mask のサイズを調整
+            # if enc_mask is not None and enc_mask.size() != (enc_input.size(0), enc_input.size(1)):
+            #     enc_mask = enc_mask.repeat(
+            #         (enc_input.size(0) + enc_mask.size(0) - 1) // enc_mask.size(0),
+            #         (enc_input.size(1) + enc_mask.size(1) - 1) // enc_mask.size(1)
+            #     )
+            # if dec_mask is not None and dec_mask.size() != (dec_input.size(0), dec_input.size(1)):
+            #     dec_mask = dec_mask.repeat(
+            #         (dec_input.size(0) + dec_mask.size(0) - 1) // dec_mask.size(0),
+            #         (dec_input.size(1) + dec_mask.size(1) - 1) // dec_mask.size(1)
+            #     )
+            
+            # memory_mask=enc_mask は基本 None にする
+            dec_output = model(enc_input, dec_input, enc_mask=None, dec_mask=dec_mask)
+        
+        
         # シーケンス次元（時間次元）方向に結合
         enc_input = torch.cat((enc_input[:, 1:, :], dec_output), dim=1)
         dec_input = dec_output
@@ -42,8 +97,15 @@ def compare_spectra(model: nn.Module, test_data: np.ndarray, enc_seq_len: int, d
 
     initial_enc_input = torch.zeros((1, enc_seq_len, test_data.shape[-1]))
     initial_dec_input = torch.randn((1, 1, test_data.shape[-1]))
-    enc_mask = torch.ones((dec_seq_len, enc_seq_len))
+    # enc_mask = torch.ones((dec_seq_len, enc_seq_len))
+    # enc_mask の初期サイズを確認し、必要に応じてリサイズ
+    enc_mask = torch.ones((enc_seq_len, enc_seq_len))
+    if enc_mask.size(0) != enc_seq_len:
+        enc_mask = enc_mask.expand(enc_seq_len, enc_seq_len)
+    # dec_mask = torch.ones((dec_seq_len, dec_seq_len))
     dec_mask = torch.ones((dec_seq_len, dec_seq_len))
+    # if dec_mask.size(0) != dec_seq_len or dec_mask.size(1) != dec_seq_len:
+    #     dec_mask = dec_mask.expand(dec_seq_len, dec_seq_len)
 
     prediction = T_step_prediction(
         model, initial_enc_input, initial_dec_input, enc_mask, dec_mask, test_data.shape[1]
@@ -168,7 +230,7 @@ if __name__ == "__main__":
         num_heads=8,
         enc_num_layers=4,
         dec_num_layers=4,
-        num_epochs=100,
+        num_epochs=1,
         batchsize=512,
         enc_dropout=0.4,
         dec_dropout=0.4

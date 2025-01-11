@@ -61,10 +61,16 @@ class TransformerDecoder(nn.Module):
                 x = self.norm2(x + self._ff_block(x))
             return x
 
-        # Self-attention block
+        # # Self-attention block
+        # def _sa_block(self, x, attn_mask, key_padding_mask):
+        #     x, _ = self.self_attn(x, x, x, attn_mask=attn_mask, key_padding_mask=key_padding_mask)
+        #     return self.dropout1(x)
+
         def _sa_block(self, x, attn_mask, key_padding_mask):
-            x, _ = self.self_attn(x, x, x, attn_mask=attn_mask, key_padding_mask=key_padding_mask)
-            return self.dropout1(x)
+            # attn_mask のサイズを調整
+            if attn_mask is not None and attn_mask.size() != (x.size(0), x.size(0)):
+                attn_mask = attn_mask.expand(x.size(0), x.size(0))
+            return self.self_attn(x, x, x, attn_mask=attn_mask, key_padding_mask=key_padding_mask)[0]
 
         # Feed forward block
         def _ff_block(self, x):
