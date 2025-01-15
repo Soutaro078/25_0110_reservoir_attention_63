@@ -206,11 +206,11 @@ def train(
 
     # CSV 書き込みファイルのパス (result ディレクトリは既存だと想定)
     # 追加機能その②
-    csv_path = "/app/result/training_log.csv"
-    # ヘッダを書いておく (上書きされる点に注意)
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["epoch", "loss"])
+    # csv_path = "/app/result/training_log.csv"
+    # # ヘッダを書いておく (上書きされる点に注意)
+    # with open(csv_path, "w", newline="") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(["epoch", "loss"])
 
     for epoch in range(num_epochs):
         epoch_iterator = tqdm(train_loader)
@@ -234,9 +234,9 @@ def train(
 
         # CSV に追記
         # 追加機能その③
-        with open(csv_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([epoch, avg_loss])
+        # with open(csv_path, "a", newline="") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([epoch, avg_loss])
         
     return model
 
